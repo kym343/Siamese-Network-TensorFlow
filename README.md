@@ -36,6 +36,7 @@ python main.py
 ```
 - `gpu_index`: gpu index if you have multiple gpus, default: `0`  
 - `batch_size`: batch size for one iteration, default: `256`
+- `lambda_1`: hyper-parameter for siamese loss for balancing total loss, default: `10`
 - `dataset`: dataset name for choice [mnist|cifar10|fingervein], default: `fingervein`
 - `is_train`: training or inference (test) mode, default: `True (training mode)`  
 - `is_siamese`: siamese or inference(not include siamese) mode, default: `True (siamese mode)`  
