@@ -45,17 +45,17 @@ python main.py
 - `dataset`: dataset name for choice [mnist|cifar10|fingervein], default: `fingervein`
 - `is_train`: training or inference (test) mode, default: `True (training mode)`  
 - `is_siamese`: siamese or inference(not include siamese) mode, default: `True (siamese mode)`  
-- `learning_rate`: initial learning rate for optimizer, default: `1e-4` 
+- `learning_rate`: initial learning rate for optimizer, default: `1e-3` 
 - `weight_decay`: weight decay for model to handle overfitting, default: `1e-4`
 - `beta1`: momentum term of Adam, default: `0.5`
 - `margin`: margin of siamese network, default: `5.0`
-- `iters`: number of iterations, default: `200,000`  
+- `iters`: number of iterations, default: `20,000`  
 - `print_freq`: print frequency for loss information, default: `1`  
 - `eval_freq`: evaluation frequency for test accuracy, default: `10`  
-- `save_freq`: save frequency for model, default: `100`  
+- `save_freq`: save frequency for model, default: `10`  
 - `sample_freq`: sample frequency for saving image, default: `100`  
 - `embedding_size`: number of sampling images for check generator quality, default: `512`  
-- `load_model`: folder of saved model that you wish to continue training, (e.g. 20191214-1931), default: `None`  
+- `load_model`: folder of saved model that you wish to continue training, (e.g. 20200212-1718), default: `None`  
 - `threshold`: threshold to test set for load_model, (e.g. 0.0718232), default: `None`  
 
 ### Test Siamese-Network
