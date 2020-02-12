@@ -43,7 +43,6 @@ class Siamese(object):
         self._ops = []
         self.keep_prob = 0.5
 
-        self.is_Train = self.flags.is_train
         self.margin = self.flags.margin
         self.sample_freq = self.flags.sample_freq
         self.embedding_size = self.flags.embedding_size
@@ -64,7 +63,7 @@ class Siamese(object):
 
         self.logDir = log_out_dir
 
-        utils.init_logger(logger=self.logger, logDir=self.logDir, isTrain=self.is_Train, name=self.name)
+        utils.init_logger(logger=self.logger, logDir=self.logDir, isTrain=self.is_train, name=self.name)
 
         self._build_net(is_siamese=self.is_siamese)
         self._tensorboard()
@@ -72,6 +71,9 @@ class Siamese(object):
         print('Initialized Siamese Network SUCCESS!')
 
     def _build_net(self, is_siamese=True):
+        # build_graph
+        self.train_mode = tf.compat.v1.placeholder(dtype=tf.dtypes.bool, name='train_mode_ph')
+
         if is_siamese:
             self.x1 = tf.placeholder(tf.float32, shape=[None, *self.image_size])
             self.x2 = tf.placeholder(tf.float32, shape=[None, *self.image_size])
@@ -94,7 +96,10 @@ class Siamese(object):
 
         vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
-        self.optim = self.optimizer_fn(self.loss, name='Adam')
+        # Optimizer
+        train_op = self.optimizer_fn(self.loss, name='Adam')
+        train_ops = [train_op] + self._ops
+        self.optim = tf.group(*train_ops)
         # self.optim = tf.train.AdamOptimizer(learning_rate=self.flags.learning_rate, beta1=self.flags.beta1). \
         #     minimize(self.loss, var_list=vars)
 
@@ -127,7 +132,8 @@ class Siamese(object):
                     self.x2: batch_x2,
                     self.y_: batch_y,
                     self.y_1: batch_y1,
-                    self.y_2: batch_y2}
+                    self.y_2: batch_y2,
+                    self.train_mode: True}
 
             _, total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, summary = self.sess.run(
                 [self.optim, self.loss, self.siamese_loss, self.reg_term, self.cls_data_loss_1, self.cls_data_loss_2,
@@ -137,7 +143,8 @@ class Siamese(object):
             batch_x1, batch_y1 = batch_imgs1, batch_label1
 
             feed = {self.x1: batch_x1,
-                    self.y_1: batch_y1}
+                    self.y_1: batch_y1,
+                    self.train_mode: True}
 
             _, total_loss, reg_term, cls_loss_1, summary = self.sess.run(
                 [self.optim, self.loss, self.reg_term, self.cls_data_loss_1, self.summary_op], feed_dict=feed)
@@ -473,23 +480,23 @@ class Siamese(object):
                 # Stage 3
                 inputs = self.block_layer(inputs=inputs, filters=64, block_fn=self.bottleneck_block,
                                           blocks=self.layers[0],
-                                          strides=1, train_mode=self.is_train, name='block_layer1')
+                                          strides=1, train_mode=self.train_mode, name='block_layer1')
                 # Stage 4
                 inputs = self.block_layer(inputs=inputs, filters=128, block_fn=self.bottleneck_block,
                                           blocks=self.layers[1],
-                                          strides=2, train_mode=self.is_train, name='block_layer2')
+                                          strides=2, train_mode=self.train_mode, name='block_layer2')
                 # Stage 5
                 inputs = self.block_layer(inputs=inputs, filters=256, block_fn=self.bottleneck_block,
                                           blocks=self.layers[2],
-                                          strides=2, train_mode=self.is_train, name='block_layer3')
+                                          strides=2, train_mode=self.train_mode, name='block_layer3')
                 # Stage 6
                 inputs = self.block_layer(inputs=inputs, filters=512, block_fn=self.bottleneck_block,
                                           blocks=self.layers[3],
-                                          strides=2, train_mode=self.is_train, name='block_layer4')
+                                          strides=2, train_mode=self.train_mode, name='block_layer4')
 
                 if self.use_batchnorm:
                     inputs = tf_utils.norm(inputs, name='before_gap_batch_norm', _type='batch', _ops=self._ops,
-                                           is_train=self.is_train, logger=self.logger)
+                                           is_train=self.train_mode, logger=self.logger)
 
                 inputs = tf_utils.relu(inputs, name='before_flatten_relu', logger=self.logger)
 
@@ -520,23 +527,23 @@ class Siamese(object):
                 # Stage 3
                 inputs = self.block_layer(inputs=inputs, filters=64, block_fn=self.bottleneck_block,
                                           blocks=self.layers[0],
-                                          strides=1, train_mode=self.is_train, name='block_layer1')
+                                          strides=1, train_mode=self.train_mode, name='block_layer1')
                 # Stage 4
                 inputs = self.block_layer(inputs=inputs, filters=128, block_fn=self.bottleneck_block,
                                           blocks=self.layers[1],
-                                          strides=2, train_mode=self.is_train, name='block_layer2')
+                                          strides=2, train_mode=self.train_mode, name='block_layer2')
                 # Stage 5
                 inputs = self.block_layer(inputs=inputs, filters=256, block_fn=self.bottleneck_block,
                                           blocks=self.layers[2],
-                                          strides=2, train_mode=self.is_train, name='block_layer3')
+                                          strides=2, train_mode=self.train_mode, name='block_layer3')
                 # Stage 6
                 inputs = self.block_layer(inputs=inputs, filters=512, block_fn=self.bottleneck_block,
                                           blocks=self.layers[3],
-                                          strides=2, train_mode=self.is_train, name='block_layer4')
+                                          strides=2, train_mode=self.train_mode, name='block_layer4')
 
                 if self.use_batchnorm:
                     inputs = tf_utils.norm(inputs, name='before_gap_batch_norm', _type='batch', _ops=self._ops,
-                                           is_train=self.is_train, logger=self.logger)
+                                           is_train=self.train_mode, logger=self.logger)
 
                 inputs = tf_utils.relu(inputs, name='before_flatten_relu', logger=self.logger)
 
@@ -690,7 +697,8 @@ class Siamese(object):
 
     def sample_imgs(self, iter_time, sample_out_dir):
         x_test, y_test = self.dataset.test_sample()
-        feed = {self.x1: x_test}
+        feed = {self.x1: x_test,
+                self.train_mode: False}
         coordinates = self.sess.run(self.gw1, feed_dict=feed)
         if self.method == 'cifar10_v4' or 'fingervein' or 'fingervein_v2' or 'ResNet18' or 'ResNet34':
             tsne = TSNE(n_components=2)
@@ -707,13 +715,14 @@ class Siamese(object):
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, x1_imgs.shape[0])
 
-            feed_train = {self.x1: x1_imgs[start_iter:end_iter]}
+            feed_train = {self.x1: x1_imgs[start_iter:end_iter],
+                          self.train_mode: True}
             coordinates_train = self.sess.run(self.gw1, feed_dict=feed_train)
 
             total_train_feature_map[start_iter:end_iter, :] = coordinates_train
             cnt += 1
 
-        # test part
+        # val part
         x_test, y_test = self.dataset.test_data, self.dataset.test_label
         total_feature_map = np.empty((x_test.shape[0], self.embedding_size), dtype=np.float32)#10000
         cnt = 0
@@ -724,7 +733,8 @@ class Siamese(object):
             start_iter = cnt*self.flags.batch_size
             end_iter = min((cnt+1)*self.flags.batch_size, x_test.shape[0])#10000
 
-            feed_test = {self.x1: x_test[start_iter:end_iter]}
+            feed_test = {self.x1: x_test[start_iter:end_iter],
+                         self.train_mode: False}
             coordinates_test = self.sess.run(self.gw1, feed_dict=feed_test)
             # coordinates_test, pred_cls = self.sess.run([self.gw1, self.pred_cls], feed_dict=feed_test)
 
@@ -745,21 +755,22 @@ class Siamese(object):
 
         total_pred_cls = np.empty((x_train.shape[0],), dtype=np.int32)
 
-        #print("Calculate accuracy for test train...")
+        #print("Calculate accuracy for train...")
         while cnt * self.flags.batch_size < x_train.shape[0]:
             print("{} ".format(cnt), end='')
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, x_train.shape[0])
 
-            feed_train = {self.x1: x_train[start_iter:end_iter]}
+            feed_train = {self.x1: x_train[start_iter:end_iter],
+                          self.train_mode: True}
             pred_cls = self.sess.run(self.pred_cls, feed_dict=feed_train)
 
             total_pred_cls[start_iter:end_iter] = pred_cls
             cnt += 1
 
         print()
-        #print("\naccuracy:{}".format(np.mean(np.equal(y_train, total_pred_cls))))
         self.train_accuracy = np.mean(np.equal(y_train, total_pred_cls))
+        print("train_accuracy:{}".format(self.train_accuracy))
 
 
         ##############################################################################################################
@@ -774,7 +785,8 @@ class Siamese(object):
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, x_test.shape[0])
 
-            feed_test = {self.x1: x_test[start_iter:end_iter]}
+            feed_test = {self.x1: x_test[start_iter:end_iter],
+                         self.train_mode: False}
             pred_cls = self.sess.run(self.pred_cls, feed_dict=feed_test)
 
             total_pred_cls[start_iter:end_iter] = pred_cls
@@ -793,6 +805,7 @@ class Siamese(object):
         # print("\ny_test:{}, total_pred_cls:{}, same?:{}".format(y_test[5], total_pred_cls[5],
         #                                                         np.equal(y_test[5], total_pred_cls[5])))
         self.accuracy = np.mean(np.equal(y_test, total_pred_cls))
+        print("test_accuracy:{}".format(self.accuracy))
 
     def Calculate_test_accuracy(self):
         x_test, y_test = self.dataset.test_data, self.dataset.test_label# self.dataset.test_sample(self.num_test)
@@ -808,7 +821,8 @@ class Siamese(object):
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, x_test.shape[0])
 
-            feed_test = {self.x1: x_test[start_iter:end_iter]}
+            feed_test = {self.x1: x_test[start_iter:end_iter],
+                         self.train_mode: False}
             pred_cls = self.sess.run(self.pred_cls, feed_dict=feed_test)
 
             total_pred_cls[start_iter:end_iter] = pred_cls
@@ -884,7 +898,8 @@ class Siamese(object):
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, self.dataset.test_data.shape[0])
 
-            feed_test = {self.x1: self.dataset.test_data[start_iter:end_iter]}
+            feed_test = {self.x1: self.dataset.test_data[start_iter:end_iter],
+                         self.train_mode: False}
             feature_1800x512[start_iter:end_iter] = self.sess.run(self.gw1, feed_dict=feed_test)
             cnt += 1
         # feed = {self.x1: self.dataset.test_data}
@@ -962,7 +977,8 @@ class Siamese(object):
             start_iter = cnt * self.flags.batch_size
             end_iter = min((cnt + 1) * self.flags.batch_size, self.dataset.test_data.shape[0])
 
-            feed_test = {self.x1: self.dataset.test_data[start_iter:end_iter]}
+            feed_test = {self.x1: self.dataset.test_data[start_iter:end_iter],
+                         self.train_mode: False}
             features[start_iter:end_iter] = self.sess.run(self.gw1, feed_dict=feed_test)
             cnt += 1
 

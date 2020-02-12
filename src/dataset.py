@@ -10,8 +10,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
-old_v = tf.logging.get_verbosity()
-tf.logging.set_verbosity(tf.logging.ERROR)
+old_v = tf.compat.v1.logging.get_verbosity()
+tf.compat.v1.logging.set_verbosity(tf.logging.ERROR)
 
 import time
 
@@ -175,7 +175,7 @@ class FingerVein(object):
 
         self.num_sample_each_class = 10
         self.train_rate = 0.7
-        self.test_sample_num_list = [8, 2, 4]#[0, 2, 3]#
+        self.test_sample_num_list = [8, 4, 5]#[0, 2, 3]#
 
         self.fingervein_path = os.path.join('../Dataset', self.dataset_name)
         self._load_fingervein_path()
