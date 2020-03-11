@@ -774,18 +774,18 @@ class Siamese(object):
 
 
         ##############################################################################################################
-        x_test, y_test = self.dataset.test_data, self.dataset.test_label# self.dataset.test_sample(self.num_test)
+        x_val, y_val = self.dataset.val_data, self.dataset.val_label# self.dataset.test_sample(self.num_test)
         cnt = 0
 
-        total_pred_cls = np.empty((x_test.shape[0],), dtype=np.int32)
+        total_pred_cls = np.empty((x_val.shape[0],), dtype=np.int32)
 
-        print("Calculate accuracy for test data...")
-        while cnt * self.flags.batch_size < x_test.shape[0]:
+        print("Calculate accuracy for val data...")
+        while cnt * self.flags.batch_size < x_val.shape[0]:
             print("{} ".format(cnt), end='')
             start_iter = cnt * self.flags.batch_size
-            end_iter = min((cnt + 1) * self.flags.batch_size, x_test.shape[0])
+            end_iter = min((cnt + 1) * self.flags.batch_size, x_val.shape[0])
 
-            feed_test = {self.x1: x_test[start_iter:end_iter],
+            feed_test = {self.x1: x_val[start_iter:end_iter],
                          self.train_mode: False}
             pred_cls = self.sess.run(self.pred_cls, feed_dict=feed_test)
 
@@ -804,7 +804,7 @@ class Siamese(object):
         #                                                         np.equal(y_test[4], total_pred_cls[4])))
         # print("\ny_test:{}, total_pred_cls:{}, same?:{}".format(y_test[5], total_pred_cls[5],
         #                                                         np.equal(y_test[5], total_pred_cls[5])))
-        self.accuracy = np.mean(np.equal(y_test, total_pred_cls))
+        self.accuracy = np.mean(np.equal(y_val, total_pred_cls))
         print("test_accuracy:{}".format(self.accuracy))
 
     def Calculate_test_accuracy(self):

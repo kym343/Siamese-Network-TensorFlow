@@ -174,7 +174,8 @@ class FingerVein(object):
         self.is_train = is_train
 
         self.num_sample_each_class = 10
-        self.train_rate = 0.7
+        self.train_rate = 0.5
+        self.val_rate = 0.2
         self.test_sample_num_list = [8, 4, 5]#[0, 2, 3]#
 
         self.fingervein_path = os.path.join('../Dataset', self.dataset_name)
@@ -184,7 +185,9 @@ class FingerVein(object):
         self.data_path = self.fingervein_path
         print('Load {} dataset...'.format(self.dataset_name))
         if self.is_train:
-            self.train_data, self.train_label, self.test_data, self.test_label = self.load_training_and_test_data()
+            self.train_data, self.train_label, self.test_data, self.test_label, self.val_data, self.val_label\
+                = self.load_training_and_test_data()
+
             self.num_trains = len(self.train_data)
 
         else:
@@ -194,7 +197,7 @@ class FingerVein(object):
             # self.train_data, self.train_label, self.test_data, self.test_label\
             #     = self.total_data, self.total_label, self.total_data, self.total_label
 
-            self.train_data, self.train_label, self.test_data, self.test_label = self.load_training_and_test_data()
+            self.train_data, self.train_label, self.test_data, self.test_label, _, _= self.load_training_and_test_data()
             self.num_trains = len(self.train_data)
 
         print('Load {} dataset SUCCESS!'.format(self.dataset_name))
@@ -219,9 +222,12 @@ class FingerVein(object):
         num_of_train = int(self.num_sample_each_class * self.train_rate) # each class
 
         total_sample_num = np.array(range(self.num_sample_each_class))
+        val_sample_num = None
         if self.is_train:
             train_sample_num = np.random.choice(self.num_sample_each_class, num_of_train, replace=False)
-            test_sample_num = np.array(list(set(total_sample_num) - set(train_sample_num)))
+            val_sample_num = np.random.choice(np.array(list(set(total_sample_num) - set(train_sample_num)))
+                                              , 2, replace=False)
+            test_sample_num = np.array(list(set(total_sample_num) - set(train_sample_num) - set(val_sample_num)))
 
         else:
             test_sample_num = np.array(self.test_sample_num_list)
@@ -229,6 +235,18 @@ class FingerVein(object):
 
         print("train_sample_num:{}".format(train_sample_num))
         print("test_sample_num:{}".format(test_sample_num))
+
+        val_data, val_label = None, None
+        if val_sample_num is not None:
+            print("val_sample_num:{}".format(val_sample_num))
+
+            val_idx = list(cls*self.num_sample_each_class + num_ for cls in range(self.num_class) for num_ in val_sample_num)
+
+            val_data = self.total_data[val_idx, :, :]
+            val_data = val_data.reshape(-1, *self.image_size)
+
+            val_label = self.total_label[val_idx]
+            val_label = val_label.reshape(-1, )
 
         train_idx = list(cls*self.num_sample_each_class + num_ for cls in range(self.num_class) for num_ in train_sample_num)
         test_idx = list(cls*self.num_sample_each_class + num_ for cls in range(self.num_class) for num_ in test_sample_num)
@@ -245,7 +263,7 @@ class FingerVein(object):
         test_label = self.total_label[test_idx]#np.asarray(test_label_list)
         test_label = test_label.reshape(-1, )
 
-        return train_data, train_label, test_data, test_label
+        return train_data, train_label, test_data, test_label, val_data, val_label
 
     def load_Specific_test_data(self, test_sample_num_list):
         import cv2
