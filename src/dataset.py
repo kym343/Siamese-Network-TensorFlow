@@ -226,7 +226,7 @@ class FingerVein(object):
         if self.is_train:
             train_sample_num = np.random.choice(self.num_sample_each_class, num_of_train, replace=False)
             val_sample_num = np.random.choice(np.array(list(set(total_sample_num) - set(train_sample_num)))
-                                              , 2, replace=False)
+                                              , int(self.num_sample_each_class * self.val_rate), replace=False)
             test_sample_num = np.array(list(set(total_sample_num) - set(train_sample_num) - set(val_sample_num)))
 
         else:
