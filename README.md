@@ -45,11 +45,12 @@ python main.py
 - `dataset`: dataset name for choice [mnist|cifar10|fingervein], default: `fingervein`
 - `is_train`: training or inference (test) mode, default: `True (training mode)`  
 - `is_siamese`: siamese or inference(not include siamese) mode, default: `True (siamese mode)`  
-- `learning_rate`: initial learning rate for optimizer, default: `1e-3` 
+- `is_triplet`: triplet loss or contrast loss mode, default: `False (contrastive loss mode)`  
+- `learning_rate`: initial learning rate for optimizer, default: `2e-4` 
 - `weight_decay`: weight decay for model to handle overfitting, default: `1e-4`
 - `beta1`: momentum term of Adam, default: `0.5`
 - `margin`: margin of siamese network, default: `5.0`
-- `iters`: number of iterations, default: `20,000`  
+- `iters`: number of iterations, default: `200,000`  
 - `print_freq`: print frequency for loss information, default: `1`  
 - `eval_freq`: evaluation frequency for test accuracy, default: `10`  
 - `save_freq`: save frequency for model, default: `10`  
