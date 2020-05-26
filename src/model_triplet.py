@@ -1,5 +1,5 @@
 # --------------------------------------------------------
-# Tensorflow Implementation of Siamese Network
+# Tensorflow Implementation of Triplet loss
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Young-Mook Kang
 # Email: kym343@naver.com
@@ -22,9 +22,9 @@ import tensorflow_utils as tf_utils
 import utils as utils
 # from dataset import Dataset
 
-class Siamese(object):
+class Triplet(object):
     def __init__(self, sess, flags, image_size, Dataset):
-        self.name = 'Siamese'
+        self.name = 'Triplet'
         self.sess = sess
         self.flags = flags
         self.image_size = image_size
@@ -39,7 +39,7 @@ class Siamese(object):
         self.decay_steps = self.iters - self.start_decay_step
         self.beta1 = self.flags.beta1
 
-        self.method = "ResNet18" #ResNet34,18
+        self.method = "ResNet18" #ResNet34
         self._ops = []
         self.keep_prob = 0.5
 
@@ -75,15 +75,17 @@ class Siamese(object):
         self.train_mode = tf.compat.v1.placeholder(dtype=tf.dtypes.bool, name='train_mode_ph')
 
         if is_siamese:
-            self.x1 = tf.placeholder(tf.float32, shape=[None, *self.image_size])
-            self.x2 = tf.placeholder(tf.float32, shape=[None, *self.image_size])
-            self.y_ = tf.placeholder(tf.float32, shape=[None])
-            self.y_1 = tf.placeholder(tf.int32, shape=[None], name='label_1')
-            self.y_2 = tf.placeholder(tf.int32, shape=[None], name='label_2')
+            self.x1 = tf.placeholder(tf.float32, shape=[None, *self.image_size])    # anchor
+            self.x2 = tf.placeholder(tf.float32, shape=[None, *self.image_size])    # positive
+            self.x3 = tf.placeholder(tf.float32, shape=[None, *self.image_size])    # negative
+
+            self.y_1 = tf.placeholder(tf.int32, shape=[None], name='label_1')    # anchor
+            self.y_2 = tf.placeholder(tf.int32, shape=[None], name='label_2')    # positive
+            self.y_3 = tf.placeholder(tf.int32, shape=[None], name='label_2')    # negative
 
             self.gw1, self.score1 = self.forward_network(self.x1, reuse=False)
             self.gw2, self.score2 = self.forward_network(self.x2, reuse=True)
-
+            self.gw3, self.score3 = self.forward_network(self.x3, reuse=True)
 
         else:
             self.x1 = tf.placeholder(tf.float32, shape=[None, *self.image_size])
@@ -122,22 +124,23 @@ class Siamese(object):
 
         return learn_step
 
-    def train_step(self, batch_imgs1, batch_label1, batch_imgs2, batch_label2, is_siamese=True):
+    def train_step(self, batch_imgs1, batch_label1, batch_imgs2, batch_label2, batch_imgs3, batch_label3,is_siamese=True):
         if is_siamese:
             batch_x1, batch_y1 = batch_imgs1, batch_label1
             batch_x2, batch_y2 = batch_imgs2, batch_label2
-            batch_y = (batch_y1 == batch_y2).astype('float')
+            batch_x3, batch_y3 = batch_imgs3, batch_label3
 
             feed = {self.x1: batch_x1,
                     self.x2: batch_x2,
-                    self.y_: batch_y,
+                    self.x3: batch_x3,
                     self.y_1: batch_y1,
                     self.y_2: batch_y2,
+                    self.y_3: batch_y3,
                     self.train_mode: True}
 
-            _, total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, summary = self.sess.run(
-                [self.optim, self.loss, self.siamese_loss, self.reg_term, self.cls_data_loss_1, self.cls_data_loss_2,
-                 self.summary_op], feed_dict=feed)
+            _, total_loss, triplet_loss, reg_term, cls_loss_1, cls_loss_2, cls_loss_3, summary = self.sess.run(
+                [self.optim, self.loss, self.triplet_loss, self.reg_term, self.cls_data_loss_1, self.cls_data_loss_2,
+                 self.cls_data_loss_3, self.summary_op], feed_dict=feed)
 
         else:
             batch_x1, batch_y1 = batch_imgs1, batch_label1
@@ -149,10 +152,10 @@ class Siamese(object):
             _, total_loss, reg_term, cls_loss_1, summary = self.sess.run(
                 [self.optim, self.loss, self.reg_term, self.cls_data_loss_1, self.summary_op], feed_dict=feed)
 
-            siamese_loss = None
+            triplet_loss = None
             cls_loss_2 = None
 
-        return total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, summary
+        return total_loss, triplet_loss, reg_term, cls_loss_1, cls_loss_2, cls_loss_3, summary
 
     def forward_network(self, inputImg, padding='SAME', reuse=False):
         with tf.compat.v1.variable_scope(self.name, reuse=reuse):
@@ -613,28 +616,32 @@ class Siamese(object):
         return inputs
 
     def _loss(self, is_siamese=True):
-        # Siamese loss
+        # triplet loss
         if is_siamese:
-            true_label = self.y_
-            false_label = tf.subtract(1.0, self.y_)
+            # true_label = self.y_
+            # false_label = tf.subtract(1.0, self.y_)
 
             M = tf.constant(self.margin)
             distance_pos = tf.pow(tf.subtract(self.gw1, self.gw2), 2)  # tf.subtract(self.gw1, self.gw2)
             distance_pos = tf.reduce_sum(distance_pos, 1)
 
-            distance_neg = distance_pos
-            distance_neg = tf.subtract(M, tf.sqrt(distance_neg + 1e-6))
-            distance_neg = tf.maximum(distance_neg, 0)
-            distance_neg = tf.pow(distance_neg, 2)
+            distance_neg = tf.pow(tf.subtract(self.gw1, self.gw3), 2)
+            distance_neg = tf.reduce_sum(distance_neg, 1)
 
-            pos = tf.multiply(true_label, distance_pos)  # distance2
-            neg = tf.multiply(false_label, distance_neg)  # tf.pow(tf.maximum(tf.subtract(M, distance), 0), 2))
+            distance_pos_M = tf.add(M, tf.sqrt(distance_pos + 1e-6))
+            distance_pos_neg_M = tf.subtract(distance_pos_M, tf.sqrt(distance_neg + 1e-6))
 
-            self.siamese_loss = tf.add(pos, neg)
-            self.siamese_loss = self.flags.lambda_1 * tf.math.reduce_mean(self.siamese_loss)
+            distance_pos_neg_M = tf.maximum(distance_pos_neg_M, 0)
+            distance_pos_neg_M = tf.pow(distance_pos_neg_M, 2)
+
+            # pos = tf.multiply(true_label, distance_pos)  # distance2
+            # neg = tf.multiply(false_label, distance_neg)  # tf.pow(tf.maximum(tf.subtract(M, distance), 0), 2))
+
+            self.triplet_loss = distance_pos_neg_M
+            self.triplet_loss = self.flags.lambda_1 * tf.math.reduce_mean(self.triplet_loss)
 
         else:
-            self.siamese_loss = 0
+            self.triplet_loss = 0
 
         # Classification loss
         if is_siamese:
@@ -642,24 +649,27 @@ class Siamese(object):
                 labels=self.y_1, logits=self.score1))
             self.cls_data_loss_2 = tf.math.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.y_2, logits=self.score2))
+            self.cls_data_loss_3 = tf.math.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=self.y_3, logits=self.score3))
         else:
             self.cls_data_loss_1 = tf.math.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.y_1, logits=self.score1))
             self.cls_data_loss_2 = 0
+            self.cls_data_loss_3 = 0
 
         # Regularization term
         variables = self.get_regularization_variables()
         self.reg_term = self.weight_decay * tf.math.reduce_mean([tf.nn.l2_loss(variable) for variable in variables])
 
         # self.total_loss = self.data_loss + self.reg_term
-        self.total_loss = self.cls_data_loss_1 + self.cls_data_loss_2 + self.siamese_loss + self.reg_term
+        self.total_loss = self.cls_data_loss_1 + self.cls_data_loss_2 + self.cls_data_loss_3 + self.triplet_loss + self.reg_term
 
         return self.total_loss
 
     def _tensorboard(self):
         if self.is_train:
             self.tb_total = tf.compat.v1.summary.scalar('loss/total_loss', self.total_loss)
-            self.tb_siamese = tf.compat.v1.summary.scalar('loss/siamese_loss', self.siamese_loss)
+            self.tb_triplet = tf.compat.v1.summary.scalar('loss/triplet_loss', self.triplet_loss)
             self.tb_reg = tf.compat.v1.summary.scalar('loss/reg_term', self.reg_term)
             self.tb_cls_data1 = tf.compat.v1.summary.scalar('loss/cls_data_loss_1', self.cls_data_loss_1)
             self.tb_cls_data2 = tf.compat.v1.summary.scalar('loss/cls_data_loss_2', self.cls_data_loss_2)
@@ -678,17 +688,18 @@ class Siamese(object):
         # self.tb_accuracy = tf.compat.v1.summary.scalar('acc/val_acc', self.accuracy_metric * 100.)
         # self.metric_summary_op = tf.compat.v1.summary.merge(inputs=[self.tb_accuracy])
 
-    def print_info(self, total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, accuracy, iter_time):
+    def print_info(self, total_loss, triplet_loss, reg_term, cls_loss_1, cls_loss_2, cls_loss_3, accuracy, iter_time):
         if np.mod(iter_time, self.flags.print_freq) == 0:
             # self.Calculate_accuracy()
             ord_output = collections.OrderedDict([('cur_iter', iter_time),
                                                   ('total_iters', self.flags.iters),
                                                   ('batch_size', self.flags.batch_size),
                                                   ('total_loss', total_loss),
-                                                  (' - siamese_loss', siamese_loss),
+                                                  (' - triplet_loss', triplet_loss),
                                                   (' - reg_loss', reg_term),
                                                   (' - cls_loss1', cls_loss_1),
                                                   (' - cls_loss2', cls_loss_2),
+                                                  (' - cls_loss3', cls_loss_3),
                                                   ('accuracy', accuracy),
                                                   ('dataset', self.flags.dataset),
                                                   ('gpu_index', self.flags.gpu_index)])
@@ -770,7 +781,7 @@ class Siamese(object):
 
         print()
         self.train_accuracy = np.mean(np.equal(y_train, total_pred_cls))
-        print("train_accuracy:{}\n".format(self.train_accuracy))
+        print("train_accuracy:{}".format(self.train_accuracy))
 
 
         ##############################################################################################################
@@ -805,8 +816,7 @@ class Siamese(object):
         # print("\ny_test:{}, total_pred_cls:{}, same?:{}".format(y_test[5], total_pred_cls[5],
         #                                                         np.equal(y_test[5], total_pred_cls[5])))
         self.accuracy = np.mean(np.equal(y_val, total_pred_cls))
-        print("val_accuracy:{}".format(self.accuracy))
-        print(" ========= Evaluaton success... ========= \n")
+        print("test_accuracy:{}".format(self.accuracy))
 
     def Calculate_test_accuracy(self):
         x_test, y_test = self.dataset.test_data, self.dataset.test_label# self.dataset.test_sample(self.num_test)

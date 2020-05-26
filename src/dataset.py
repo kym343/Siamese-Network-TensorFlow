@@ -176,7 +176,7 @@ class FingerVein(object):
         self.num_sample_each_class = 10
         self.train_rate = 0.5
         self.val_rate = 0.2
-        self.test_sample_num_list = [8, 4, 5]#[0, 2, 3]#
+        self.test_sample_num_list = [8, 2, 5]#[0, 2, 3]#
 
         self.fingervein_path = os.path.join('../Dataset', self.dataset_name)
         self._load_fingervein_path()
@@ -334,6 +334,40 @@ class FingerVein(object):
         batch_label2 = self.train_label[list2]
 
         return batch_imgs1, batch_label1, batch_imgs2, batch_label2
+
+    def train_next_batch_pair_triplet(self, batch_size=256):
+        self.labels_set = set(self.train_label)
+
+        self.label_to_indices = {label:np.where(self.train_label == label)[0] for label in self.labels_set}
+
+        anchor = np.random.choice(self.num_trains, batch_size, replace=False)
+        # rand_positive_num = np.random.choice(self.num_trains, batch_size, replace=False)
+        # rand_negative_num = np.random.choice(self.num_trains, batch_size, replace=False)
+
+        positive_pairs = [[i, np.random.choice(list(set(self.label_to_indices[self.train_label[i].item()]) - set([i])))]
+                          for i in anchor]
+
+        negative_pairs = [[i, np.random.choice(self.label_to_indices[np.random.choice(
+            list(self.labels_set - set([self.train_label[i].item()])))])] for i in anchor]
+
+        list1 = []
+        list2 = []
+        list3 = []
+        for i in range(batch_size):
+            list1.append(positive_pairs[i][0])
+            list2.append(positive_pairs[i][1])
+            list3.append(negative_pairs[i][1])
+
+        batch_imgs1 = self.train_data[list1]
+        batch_label1 = self.train_label[list1]
+
+        batch_imgs2 = self.train_data[list2]
+        batch_label2 = self.train_label[list2]
+
+        batch_imgs3 = self.train_data[list3]
+        batch_label3 = self.train_label[list3]
+
+        return batch_imgs1, batch_label1, batch_imgs2, batch_label2, batch_imgs3, batch_label3
 
     def test_sample(self, batch_size=512):
         indexes = np.random.randint(low=0, high=self.test_data.shape[0], size=batch_size)

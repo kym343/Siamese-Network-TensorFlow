@@ -19,12 +19,13 @@ tf.flags.DEFINE_string('dataset', 'fingervein', 'dataset name for choice [mnist|
 
 tf.flags.DEFINE_bool('is_train', True, 'training or inference mode, default: True')
 tf.flags.DEFINE_bool('is_siamese', True, 'siamese network or inference mode, default: True')
-tf.flags.DEFINE_float('learning_rate', 1e-3, 'initial learning rate, default: 0.001')
+tf.flags.DEFINE_bool('is_triplet', False, 'triplet loss or contrast loss mode, default: False')
+tf.flags.DEFINE_float('learning_rate', 2e-4, 'initial learning rate, default: 0.001')
 tf.flags.DEFINE_float('weight_decay', 1e-4, 'weight decay for model to handle overfitting, default: 0.0001')
 tf.flags.DEFINE_float('beta1', 0.5, 'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_float('margin', 5.0, 'margin of siamese network, default: 5.0')
 
-tf.flags.DEFINE_integer('iters', 20000, 'number of iterations, default: 20000')
+tf.flags.DEFINE_integer('iters', 200000, 'number of iterations, default: 200000')
 tf.flags.DEFINE_integer('print_freq', 1, 'print frequency for loss, default: 1')
 tf.flags.DEFINE_integer('eval_freq', 10, 'evaluation frequency for test accuracy, default: 10')
 tf.flags.DEFINE_integer('save_freq', 10, 'save frequency for model, default: 10')

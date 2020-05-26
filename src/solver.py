@@ -13,6 +13,7 @@ from datetime import datetime
 
 from dataset import Dataset
 from model import Siamese
+from model_triplet import Triplet
 import tensorflow_utils as tf_utils
 
 class Solver(object):
@@ -22,8 +23,13 @@ class Solver(object):
         self.sess = tf.Session(config=run_config)
 
         self.flags = flags
+        self.is_triplet = self.flags.is_triplet
         self.dataset = Dataset(self.flags.dataset, is_train=self.flags.is_train)
-        self.model = Siamese(self.sess, self.flags, self.dataset.image_size, self.dataset)
+        if not self.is_triplet:
+            self.model = Siamese(self.sess, self.flags, self.dataset.image_size, self.dataset)
+        else:
+            self.model = Triplet(self.sess, self.flags, self.dataset.image_size, self.dataset)
+
         self.accuracy = self.model.accuracy
         self.train_accuracy = self.model.train_accuracy ###############################################################
 
@@ -56,21 +62,37 @@ class Solver(object):
     def train(self):
         for iter_time in range(self.flags.iters):
             if self.flags.is_siamese:
-                batch_imgs1, batch_label1, batch_imgs2, batch_label2 = self.dataset.train_next_batch_pair(
-                    batch_size=self.flags.batch_size)
+                if not self.is_triplet:
+                    batch_imgs1, batch_label1, batch_imgs2, batch_label2 = self.dataset.train_next_batch_pair(
+                        batch_size=self.flags.batch_size)
+                else:
+                    batch_imgs1, batch_label1, batch_imgs2, batch_label2, batch_imgs3, batch_label3 = \
+                        self.dataset.train_next_batch_pair_triplet(batch_size=self.flags.batch_size)
 
             else:
                 batch_imgs1, batch_label1 = self.dataset.train_next_batch_random(batch_size=self.flags.batch_size)
                 batch_imgs2 = None
                 batch_label2 = None
+                if self.is_triplet:
+                    batch_imgs3 = None
+                    batch_label3 = None
 
-            total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, summary = self.model.train_step(
-                batch_imgs1, batch_label1, batch_imgs2, batch_label2, is_siamese=self.flags.is_siamese)
+            if not self.is_triplet:
+                total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, summary = self.model.train_step(
+                    batch_imgs1, batch_label1, batch_imgs2, batch_label2, is_siamese=self.flags.is_siamese)
 
-            self.model.print_info(total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, self.model.accuracy, iter_time)
+                self.model.print_info(total_loss, siamese_loss, reg_term, cls_loss_1, cls_loss_2, self.model.accuracy, iter_time)
+
+            else:
+                total_loss, triplet_loss, reg_term, cls_loss_1, cls_loss_2, cls_loss_3, summary = \
+                    self.model.train_step(batch_imgs1, batch_label1, batch_imgs2, batch_label2,
+                                          batch_imgs3, batch_label3, is_siamese=self.flags.is_siamese)
+
+                self.model.print_info(total_loss, triplet_loss, reg_term, cls_loss_1, cls_loss_2, cls_loss_3,
+                                      self.model.accuracy, iter_time)
 
             if iter_time % self.flags.eval_freq == 0:
-                print("Evaluaton process...")
+                print(" ========= Evaluaton process... ========= ")
                 self.model.Calculate_accuracy()
 
             self.train_writer.add_summary(summary, iter_time)
