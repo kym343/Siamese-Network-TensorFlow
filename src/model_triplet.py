@@ -816,7 +816,9 @@ class Triplet(object):
         # print("\ny_test:{}, total_pred_cls:{}, same?:{}".format(y_test[5], total_pred_cls[5],
         #                                                         np.equal(y_test[5], total_pred_cls[5])))
         self.accuracy = np.mean(np.equal(y_val, total_pred_cls))
-        print("test_accuracy:{}".format(self.accuracy))
+        print("val_accuracy:{}".format(self.accuracy))
+        print(" ========= Evaluaton success... ========= \n")
+
 
     def Calculate_test_accuracy(self):
         x_test, y_test = self.dataset.test_data, self.dataset.test_label# self.dataset.test_sample(self.num_test)
